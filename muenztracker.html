@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>ÖPNV Münztracker</title>
+  <meta name="theme-color" content="#f5f5f7" />
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f5f7;
+      --surface: rgba(255, 255, 255, 0.82);
+      --surface-strong: rgba(255, 255, 255, 0.94);
+      --line: rgba(15, 23, 42, 0.08);
+      --line-strong: rgba(15, 23, 42, 0.14);
+      --text: #111827;
+      --muted: #6b7280;
+      --bahn: #0a84ff;
+      --bahn-2: #0066cc;
+      --bus: #ff9f0a;
+      --bus-2: #e68600;
+      --ok: #34c759;
+      --ok-2: #28a745;
+      --danger: #ff3b30;
+      --danger-2: #d70015;
+      --neutral: #5da9ff;
+      --neutral-2: #2f7cf6;
+      --shadow: 0 20px 60px rgba(15, 23, 42, 0.10);
+      --radius-lg: 20px;
+      --gap: 10px;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(10,132,255,.09), transparent 28%),
+        radial-gradient(circle at bottom, rgba(52,199,89,.08), transparent 24%),
+        var(--bg);
+      color: var(--text);
+    }
+    body {
+      display: flex;
+      justify-content: center;
+      padding: 10px;
+      overflow: hidden;
+    }
+    .app {
+      width: min(100%, 430px);
+      height: calc(100dvh - 20px);
+      display: flex;
+      align-items: stretch;
+    }
+    .phone {
+      width: 100%;
+      height: 100%;
+      background: var(--surface);
+      border: 1px solid rgba(255,255,255,0.65);
+      border-radius: 34px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+    }
+    .top {
+      padding: max(14px, env(safe-area-inset-top)) 14px 10px;
+      display: grid;
+      gap: 10px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.62), rgba(255,255,255,.28));
+    }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .eyebrow { font-size: 12px; letter-spacing: .02em; color: var(--muted); font-weight: 600; }
+    .routepill, .seg a {
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.65);
+      backdrop-filter: blur(10px);
+      text-decoration: none;
+      color: var(--text);
+    }
+    .routepill {
+      padding: 7px 10px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .hero {
+      padding: 8px 14px 12px;
+      text-align: center;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.02));
+    }
+    .title { font-size: 22px; font-weight: 700; letter-spacing: -0.03em; margin: 0; }
+    .scoreLabel { margin-top: 6px; color: var(--muted); font-size: 12px; font-weight: 600; }
+    .score {
+      margin-top: 4px;
+      font-size: clamp(48px, 14vw, 72px);
+      line-height: .92;
+      font-weight: 800;
+      letter-spacing: -0.06em;
+      font-variant-numeric: tabular-nums;
+    }
+    .rates {
+      margin-top: 7px;
+      display: inline-flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+    }
+    .mini {
+      font-size: 11px;
+      color: var(--muted);
+      background: rgba(255,255,255,.55);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 8px;
+      font-weight: 600;
+      backdrop-filter: blur(10px);
+    }
+    .main {
+      padding: 10px 12px;
+      display: grid;
+      grid-template-rows: auto auto auto 1fr;
+      gap: var(--gap);
+      min-height: 0;
+    }
+    .seg {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .seg a {
+      text-align: center;
+      padding: 10px 8px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .seg a.active {
+      background: rgba(10,132,255,.12);
+      border-color: rgba(10,132,255,.22);
+      color: #0057b8;
+    }
+    .stacked {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .card {
+      background: var(--surface-strong);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 10px;
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.05);
+      min-height: 0;
+    }
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 700;
+      letter-spacing: .01em;
+    }
+    input[type="number"] {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid var(--line-strong);
+      border-radius: 14px;
+      background: rgba(249,250,251,.95);
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      box-shadow: inset 0 1px 1px rgba(255,255,255,.7);
+      appearance: textfield;
+      -webkit-appearance: none;
+    }
+    input::placeholder { color: #9ca3af; }
+    input:focus {
+      outline: none;
+      border-color: rgba(10,132,255,.45);
+      box-shadow: 0 0 0 4px rgba(10,132,255,.13);
+    }
+    .inlineAction {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+    .actions1, .actions2 {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .actions1 { grid-template-columns: 1fr; }
+    .actions2 { grid-template-columns: 1fr 1fr; }
+    button {
+      min-height: 46px;
+      border: 0;
+      border-radius: 15px;
+      font-size: 15px;
+      font-weight: 750;
+      letter-spacing: -0.01em;
+      color: white;
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 10px 18px rgba(0,0,0,.10);
+      padding: 0 14px;
+      white-space: nowrap;
+    }
+    button:active { transform: scale(.985); }
+    .bahn { background: linear-gradient(180deg, var(--bahn), var(--bahn-2)); }
+    .bus { background: linear-gradient(180deg, var(--bus), var(--bus-2)); }
+    .add { background: linear-gradient(180deg, var(--ok), var(--ok-2)); }
+    .sub { background: linear-gradient(180deg, #ff6b64, #ff3b30); }
+    .neutral { background: linear-gradient(180deg, var(--neutral), var(--neutral-2)); }
+    @media (max-height: 760px) {
+      .title { font-size: 20px; }
+      .score { font-size: clamp(42px, 13vw, 64px); }
+      .hero { padding-top: 6px; padding-bottom: 9px; }
+      .main { gap: 8px; padding: 8px 10px; }
+      .card { padding: 9px; }
+      input[type="number"] { min-height: 40px; font-size: 22px; }
+      button { min-height: 42px; font-size: 14px; }
+      .seg a { padding: 9px 8px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="phone" aria-label="ÖPNV Münztracker">
+      <div class="top">
+        <div class="row">
+          <div class="eyebrow">THE GAME · Münztracker</div>
+          <div class="routepill" id="routeInfo">/1</div>
+        </div>
+        <div class="seg" aria-label="Kleingruppe wählen">
+          <a href="#/1" id="link1">Kleingruppe 1</a>
+          <a href="#/2" id="link2">Kleingruppe 2</a>
+        </div>
+      </div>
+
+      <div class="hero">
+        <h1 class="title" id="groupTitle">Kleingruppe 1</h1>
+        <div class="scoreLabel">Aktuelle Münzen</div>
+        <div class="score" id="score">250</div>
+        <div class="rates">
+          <span class="mini">Start 250</span>
+          <span class="mini">Bahn 50/min</span>
+          <span class="mini">Bus 25/min</span>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="stacked">
+          <section class="card">
+            <h2>Bus</h2>
+            <div class="inlineAction">
+              <input id="busMinutes" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" placeholder="Minuten" />
+              <button class="bus" id="busBtn">Buchen</button>
+            </div>
+          </section>
+
+          <section class="card">
+            <h2>Bahn</h2>
+            <div class="inlineAction">
+              <input id="bahnMinutes" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" placeholder="Minuten" />
+              <button class="bahn" id="bahnBtn">Buchen</button>
+            </div>
+          </section>
+        </div>
+
+        <section class="card">
+          <h2>Challenge / Korrektur</h2>
+          <input id="challengeValue" type="number" inputmode="numeric" pattern="-?[0-9]*" step="1" placeholder="Punkte" />
+          <div class="actions2">
+            <button class="add" id="challengeAddBtn">Hinzufügen</button>
+            <button class="sub" id="challengeSubBtn">Abziehen</button>
+          </div>
+          <div class="actions1">
+            <button class="neutral" id="resetBtn">Reset</button>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const START_COINS = 250;
+    const COST_BAHN = 50;
+    const COST_BUS = 25;
+    const store = {
+      '1': { score: START_COINS, lastAction: 'Startwert gesetzt', updatedAt: '–' },
+      '2': { score: START_COINS, lastAction: 'Startwert gesetzt', updatedAt: '–' }
+    };
+
+    const el = {
+      score: document.getElementById('score'),
+      groupTitle: document.getElementById('groupTitle'),
+      routeInfo: document.getElementById('routeInfo'),
+      bahnMinutes: document.getElementById('bahnMinutes'),
+      busMinutes: document.getElementById('busMinutes'),
+      challengeValue: document.getElementById('challengeValue'),
+      link1: document.getElementById('link1'),
+      link2: document.getElementById('link2')
+    };
+
+    function nowText() {
+      return new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function currentGroup() {
+      const hash = location.hash || '#/1';
+      return hash.includes('/2') ? '2' : '1';
+    }
+
+    async function saveStore() {
+      try {
+        await fetch('/state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(store)
+        });
+      } catch (e) {}
+    }
+
+    async function loadStore() {
+      try {
+        const res = await fetch('/state');
+        if (!res.ok) return;
+        const saved = await res.json();
+        ['1', '2'].forEach(g => {
+          if (saved[g] && Number.isFinite(saved[g].score)) store[g].score = saved[g].score;
+          if (saved[g] && typeof saved[g].lastAction === 'string') store[g].lastAction = saved[g].lastAction;
+          if (saved[g] && typeof saved[g].updatedAt === 'string') store[g].updatedAt = saved[g].updatedAt;
+        });
+      } catch (e) {}
+    }
+
+    function render() {
+      const group = currentGroup();
+      const data = store[group];
+      el.groupTitle.textContent = `Kleingruppe ${group}`;
+      el.routeInfo.textContent = `/${group}`;
+      el.score.textContent = `${data.score}`;
+      el.link1.classList.toggle('active', group === '1');
+      el.link2.classList.toggle('active', group === '2');
+    }
+
+    function parseIntSafe(value) {
+      const n = parseInt(value, 10);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function clearField(input) {
+      input.value = '';
+      input.blur();
+    }
+
+    function updateScore(delta, actionText) {
+      const group = currentGroup();
+      store[group].score += delta;
+      store[group].lastAction = actionText;
+      store[group].updatedAt = nowText();
+      saveStore();
+      render();
+    }
+
+    document.getElementById('bahnBtn').addEventListener('click', () => {
+      const mins = parseIntSafe(el.bahnMinutes.value);
+      if (mins <= 0) return el.bahnMinutes.focus();
+      updateScore(-(mins * COST_BAHN), `${mins} min Bahn: -${mins * COST_BAHN}`);
+      clearField(el.bahnMinutes);
+    });
+
+    document.getElementById('busBtn').addEventListener('click', () => {
+      const mins = parseIntSafe(el.busMinutes.value);
+      if (mins <= 0) return el.busMinutes.focus();
+      updateScore(-(mins * COST_BUS), `${mins} min Bus: -${mins * COST_BUS}`);
+      clearField(el.busMinutes);
+    });
+
+    document.getElementById('challengeAddBtn').addEventListener('click', () => {
+      const val = Math.abs(parseIntSafe(el.challengeValue.value));
+      if (val <= 0) return el.challengeValue.focus();
+      updateScore(val, `Challenge: +${val}`);
+      clearField(el.challengeValue);
+    });
+
+    document.getElementById('challengeSubBtn').addEventListener('click', () => {
+      const val = Math.abs(parseIntSafe(el.challengeValue.value));
+      if (val <= 0) return el.challengeValue.focus();
+      updateScore(-val, `Korrektur: -${val}`);
+      clearField(el.challengeValue);
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      const group = currentGroup();
+      store[group].score = 0;
+      store[group].lastAction = 'Manuell zurückgesetzt';
+      store[group].updatedAt = nowText();
+      saveStore();
+      render();
+    });
+
+    window.addEventListener('hashchange', render);
+    if (!location.hash) location.hash = '#/1';
+    loadStore().then(render);
+  </script>
+</body>
+</html>
